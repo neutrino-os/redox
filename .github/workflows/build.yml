@@ -45,7 +45,8 @@ jobs:
           git-lfs \
           curl \
           cmake \
-          pkg-config
+          pkg-config \
+          cbindgen
 
     - name: Set up Rust toolchain
       uses: dtolnay/rust-toolchain@nightly
