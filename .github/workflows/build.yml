@@ -46,7 +46,8 @@ jobs:
           curl \
           cmake \
           pkg-config \
-          cbindgen
+          cbindgen \
+          just
 
     - name: Set up Rust toolchain
       uses: dtolnay/rust-toolchain@nightly
