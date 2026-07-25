@@ -12,65 +12,38 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - name: Checkout repository (with submodules)
+    - name: Checkout repository
       uses: actions/checkout@v4
       with:
-        submodules: recursive
         fetch-depth: 0
 
     - name: Free disk space on runner
       run: |
-        echo "=== Disk space before cleanup ==="
-        df -h
-        
-        # Remove pre-installed heavy runtimes & SDKs
         sudo rm -rf /usr/share/dotnet
         sudo rm -rf /usr/local/lib/android
         sudo rm -rf /opt/ghc
         sudo rm -rf /usr/local/share/powershell
         sudo rm -rf /usr/share/swift
         sudo rm -rf /usr/local/graalvm
-        
-        # Prune docker images and package manager caches
-        sudo docker image prune --all --force || true
         sudo apt-get clean
-        
-        echo "=== Disk space after cleanup ==="
-        df -h
 
-    - name: Set up Rust toolchain
-      uses: dtolnay/rust-toolchain@nightly
-      with:
-        components: rust-src
-
-    - name: Install system build dependencies
+    - name: Install Podman and dependencies
       run: |
         sudo apt-get update
-        sudo apt-get install -y \
-          build-essential \
-          bison \
-          flex \
-          fuse3 \
-          libfuse3-dev \
-          genisoimage \
-          nasm \
-          qemu-system-x86 \
-          android-sdk-libsparse-utils \
-          syslinux \
-          syslinux-utils \
-          git-lfs
+        sudo apt-get install -y podman git-lfs curl
 
-    - name: Initialize Redox build submodules
+    - name: Run Podman Bootstrap & Build Image
       run: |
-        make pull
-
-    - name: Build Redox OS image
-      run: |
-        make build
+        # Run bootstrap non-interactively
+        echo "y" | bash podman_bootstrap.sh
 
     - name: Upload build artifact
       uses: actions/upload-artifact@v4
       with:
         name: redox-disk-image
-        path: build/x86_64/desktop/bootloader.virtualdisk
+        path: |
+          build/x86_64/desktop/*.img
+          build/x86_64/desktop/*.iso
+          build/x86_64/desktop/*.virtualdisk
+          build/x86_64/desktop/harddrive.bin
         if-no-files-found: warn
