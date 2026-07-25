@@ -55,7 +55,7 @@ jobs:
           genisoimage \
           nasm \
           qemu-system-x86 \
-          simg2img \
+          android-sdk-libsparse-utils \
           syslinux \
           syslinux-utils \
           git-lfs
