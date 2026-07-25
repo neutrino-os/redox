@@ -1,0 +1,76 @@
+name: Build Redox OS
+
+on:
+  push:
+    branches: [ master, main ]
+  pull_request:
+    branches: [ master, main ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout repository (with submodules)
+      uses: actions/checkout@v4
+      with:
+        submodules: recursive
+        fetch-depth: 0
+
+    - name: Free disk space on runner
+      run: |
+        echo "=== Disk space before cleanup ==="
+        df -h
+        
+        # Remove pre-installed heavy runtimes & SDKs
+        sudo rm -rf /usr/share/dotnet
+        sudo rm -rf /usr/local/lib/android
+        sudo rm -rf /opt/ghc
+        sudo rm -rf /usr/local/share/powershell
+        sudo rm -rf /usr/share/swift
+        sudo rm -rf /usr/local/graalvm
+        
+        # Prune docker images and package manager caches
+        sudo docker image prune --all --force || true
+        sudo apt-get clean
+        
+        echo "=== Disk space after cleanup ==="
+        df -h
+
+    - name: Set up Rust toolchain
+      uses: dtolnay/rust-toolchain@nightly
+      with:
+        components: rust-src
+
+    - name: Install system build dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y \
+          build-essential \
+          bison \
+          flex \
+          fuse3 \
+          libfuse3-dev \
+          genisoimage \
+          nasm \
+          qemu-system-x86 \
+          simg2img \
+          syslinux \
+          syslinux-utils \
+          git-lfs
+
+    - name: Initialize Redox build submodules
+      run: |
+        make pull
+
+    - name: Build Redox OS image
+      run: |
+        make build
+
+    - name: Upload build artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: redox-disk-image
+        path: build/x86_64/desktop/bootloader.virtualdisk
+        if-no-files-found: warn
