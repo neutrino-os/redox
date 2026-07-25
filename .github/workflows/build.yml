@@ -95,6 +95,9 @@ jobs:
         name: redox-disk-image
         path: artifacts
 
+    - name: List Artifacts for Verification
+      run: ls -la artifacts/
+
     - name: Publish Pre-release
       uses: softprops/action-gh-release@v2
       with:
