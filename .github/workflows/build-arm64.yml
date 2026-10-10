@@ -57,7 +57,7 @@ jobs:
     - name: Build Redox OS Image
       run: |
         mkdir -p build/aarch64/desktop/filesystem
-        ./build.sh -a aarch64 -c desktop live - make build/aarch64/desktop/redox-live.iso
+        ./build.sh -a aarch64 -c demo live - make build/aarch64/desktop/redox-live.iso
 
     - name: Upload build artifact
       uses: actions/upload-artifact@v4
