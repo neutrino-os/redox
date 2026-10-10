@@ -1,0 +1,111 @@
+name: Build Redox OS (Native ARM64)
+
+on:
+  push:
+    branches: [ master, main ]
+  pull_request:
+    branches: [ master, main ]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    # Use GitHub's native ARM64 Ubuntu runner
+    runs-on: ubuntu-26.04-arm
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+
+    - name: Free disk space on runner
+      run: |
+        sudo rm -rf /usr/share/dotnet
+        sudo rm -rf /usr/local/lib/android
+        sudo rm -rf /opt/ghc
+        sudo rm -rf /usr/local/share/powershell
+        sudo rm -rf /usr/share/swift
+        sudo rm -rf /usr/local/graalvm
+        sudo apt-get clean
+
+    - name: Install native build dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y \
+          build-essential \
+          bison \
+          flex \
+          fuse3 \
+          libfuse3-dev \
+          genisoimage \
+          android-sdk-libsparse-utils \
+          git-lfs \
+          curl \
+          cmake \
+          pkg-config \
+          cbindgen \
+          just
+
+    - name: Set up Rust toolchain
+      uses: dtolnay/rust-toolchain@nightly
+      with:
+        components: rust-src
+
+    - name: Configure Native Build for ARM64
+      run: |
+        # Configured for native AArch64 minimal profile compilation
+        cat <<EOF > .config
+        PODMAN_BUILD?=0
+        ARCH?=aarch64
+        CONFIG_NAME?=minimal
+        REPO_BINARY?=1
+        PREFIX_BINARY?=1
+        EOF
+
+    - name: Build Redox OS Image
+      run: |
+        make all
+
+    - name: Upload build artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: redox-arm64-disk-image
+        path: |
+          build/aarch64/minimal/harddrive.img
+          build/aarch64/minimal/harddrive.bin
+          build/aarch64/minimal/*.iso
+        if-no-files-found: warn
+
+  release:
+    name: Create GitHub Pre-release
+    needs: build
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Download Build Artifacts
+      uses: actions/download-artifact@v4
+      with:
+        name: redox-arm64-disk-image
+        path: artifacts
+
+    - name: List Artifacts for Verification
+      run: ls -la artifacts/
+
+    - name: Publish Pre-release
+      uses: softprops/action-gh-release@v2
+      with:
+        prerelease: true
+        tag_name: "build-arm64-${{ github.run_number }}"
+        name: "Redox OS ARM64 Pre-release #${{ github.run_number }}"
+        body: |
+          ### 🚀 Redox OS Automated Native ARM64 Build
+          This pre-release image was generated automatically by GitHub CI on an ARM64 runner.
+
+          * **Run Number:** `#${{ github.run_number }}`
+          * **Branch:** `${{ github.ref_name }}`
+          * **Commit SHA:** `${{ github.sha }}`
+        files: artifacts/*
